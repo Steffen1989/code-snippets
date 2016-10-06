@@ -37,7 +37,7 @@ bcz0 = bcs[4]
 bcz1 = bcs[5][0:2]
 f.close()
 
-# Now read the corresponding .rea file
+# Define some functions
 #----------------------------------------------------------------------
 def write_mesh(file_obj):
     # copy element locations
@@ -61,6 +61,45 @@ def write_mesh(file_obj):
         x0 = xstart
         y0 = y0 +dy
 
+def set_bc(file_obj, bctype, face, elx, ely):
+    zero=float(0.0)
+    if (bctype == 'E  '): # Internal
+        if (face == 1): # south face: connected element is on row lower and conn face is on north
+            file_obj.write(' {0:3s} {1:2d} {2:2d}{3:10.5f}{4:14.5f}{5:14.5f}{6:14.5f}{7:14.5f}{8:s}'\
+                .format(bctype,elx+ely*nely+1,face,elx+(ely-1)*nely+1,3,zero,zero,zero,'\n'))
+        elif(face == 2):  # east face: connected element is on next column and conn face is west
+            file_obj.write(' {0:3s} {1:2d} {2:2d}{3:10.5f}{4:14.5f}{5:14.5f}{6:14.5f}{7:14.5f}{8:s}'\
+                .format('E  ',elx+ely*nely+1,face,elx+1+ely*nely+1,4,zero,zero,zero,'\n'))
+        elif(face == 3):  # north face: connected element is on row higher and conn face is south
+            file_obj.write(' {0:3s} {1:2d} {2:2d}{3:10.5f}{4:14.5f}{5:14.5f}{6:14.5f}{7:14.5f}{8:s}'\
+                .format('E  ',elx+ely*nely+1,face,elx+(ely+1)*nely+1,1,zero,zero,zero,'\n'))
+        elif(face == 4):  # west face: connected element is on previous colum and conn face is east
+            file_obj.write(' {0:3s} {1:2d} {2:2d}{3:10.5f}{4:14.5f}{5:14.5f}{6:14.5f}{7:14.5f}{8:s}'\
+                .format('E  ',elx+ely*nely+1,face,elx-1+ely*nely+1,2,zero,zero,zero,'\n'))
+    if (bctype == 'W  '): # Wall
+        file_obj.write(' {0:3s} {1:2d} {2:2d}{3:10.5f}{4:14.5f}{5:14.5f}{6:14.5f}{7:14.5f}{8:s}'\
+            .format('W  ',elx+ely*nely+1,face,zero,zero,zero,zero,zero,'\n'))
+    if (bctype == 'SYM'): # Symmetry
+        file_obj.write(' {0:3s} {1:2d} {2:2d}{3:10.5f}{4:14.5f}{5:14.5f}{6:14.5f}{7:14.5f}{8:s}'\
+            .format('SYM',elx+ely*nely+1,face,zero,zero,zero,zero,zero,'\n'))
+    if (bctype == 'P  '): # Periodic
+        conn_el = 0
+        conn_face = 0
+        if (face == 4): # west side: conn el and face are on east side
+            conn_el = nelx+ely*nely
+            conn_face = 2
+        elif (face == 3): # north side: conn el and face are on south side
+            conn_el = elx+0*nely+1
+            conn_face = 1
+        elif (face == 2): # east side: conn el and face are on west side
+            conn_el = 1+ely*nely
+            conn_face = 4
+        elif (face == 1): # south side: conn el and face are on north side
+            conn_el = elx+(nely-1)*nely+1
+            conn_face = 3
+        file_obj.write(' {0:3s} {1:2d} {2:2d}{3:10.5f}{4:14.5f}{5:14.5f}{6:14.5f}{7:14.5f}{8:s}'\
+            .format('P  ',elx+ely*nely+1,face,conn_el,conn_face,zero,zero,zero,'\n'))
+
 def write_bcs(file_obj):
     zero=float(0.0)
     # Loop through all elements:
@@ -70,45 +109,26 @@ def write_bcs(file_obj):
             for face in range(1,5):
                 # check if we are at the boundary
                 if (elx == 0 and face == 4):  # west side
-                    if(bcx0 == 'P  '):   # periodic BCs: connecting element and face is on east side
-                        file_obj.write(' {0:3s} {1:2d} {2:2d}{3:10.5f}{4:14.5f}{5:14.5f}{6:14.5f}{7:14.5f}{8:s}'\
-                            .format('P  ',elx+ely*nely+1,face,nelx+ely*nely,2,zero,zero,zero,'\n'))
+                    set_bc(file_obj, bcx0, face, elx, ely)
                 elif (elx == nelx-1 and face == 2):  # east side
-                    if(bcx1 == 'P  '):  # periodic BCs: connectin element and face is on west side
-                        file_obj.write(' {0:3s} {1:2d} {2:2d}{3:10.5f}{4:14.5f}{5:14.5f}{6:14.5f}{7:14.5f}{8:s}'\
-                            .format('P  ',elx+ely*nely+1,face,1+ely*nely,4,zero,zero,zero,'\n'))
+                    set_bc(file_obj, bcx1, face, elx, ely)
                 elif (ely == 0 and face == 1):  # south side
-                    if(bcy0 == 'W  '):  # wall BCs
-                        file_obj.write(' {0:3s} {1:2d} {2:2d}{3:10.5f}{4:14.5f}{5:14.5f}{6:14.5f}{7:14.5f}{8:s}'\
-                            .format('W  ',elx+ely*nely+1,face,zero,zero,zero,zero,zero,'\n'))
+                    set_bc(file_obj, bcy0, face, elx, ely)
                 elif (ely == nely-1 and face == 3):  # north side
-                    if(bcx1 == 'SYM'):  # symmetry BCs
-                        file_obj.write(' {0:3s} {1:2d} {2:2d}{3:10.5f}{4:14.5f}{5:14.5f}{6:14.5f}{7:14.5f}{8:s}'\
-                            .format('SYM',elx+ely*nely+1,face,zero,zero,zero,zero,zero,'\n'))
+                    set_bc(file_obj, bcy1, face, elx, ely)
+                # This is the inside
                 else: 
-                    if(face == 1):  # south face: connected element is on row lower and conn face is north
-                        file_obj.write(' {0:3s} {1:2d} {2:2d}{3:10.5f}{4:14.5f}{5:14.5f}{6:14.5f}{7:14.5f}{8:s}'\
-                            .format('E  ',elx+ely*nely+1,face,elx+(ely-1)*nely+1,3,zero,zero,zero,'\n'))
-                    elif(face == 2):  # east face: connected element is on next column and conn face is west
-                        file_obj.write(' {0:3s} {1:2d} {2:2d}{3:10.5f}{4:14.5f}{5:14.5f}{6:14.5f}{7:14.5f}{8:s}'\
-                            .format('E  ',elx+ely*nely+1,face,elx+1+ely*nely+1,4,zero,zero,zero,'\n'))
-                    elif(face == 3):  # north face: connected element is on row higher and conn face is south
-                        file_obj.write(' {0:3s} {1:2d} {2:2d}{3:10.5f}{4:14.5f}{5:14.5f}{6:14.5f}{7:14.5f}{8:s}'\
-                            .format('E  ',elx+ely*nely+1,face,elx+(ely+1)*nely+1,1,zero,zero,zero,'\n'))
-                    elif(face == 4):  # west face: connected element is on previous colum and conn face is east
-                        file_obj.write(' {0:3s} {1:2d} {2:2d}{3:10.5f}{4:14.5f}{5:14.5f}{6:14.5f}{7:14.5f}{8:s}'\
-                            .format('E  ',elx+ely*nely+1,face,elx-1+ely*nely+1,2,zero,zero,zero,'\n'))
-
-                    else:
-                        file_obj.write(' {0:3s} {1:2d} {2:2d}{3:10.5f}{4:14.5f}{5:14.5f}{6:14.5f}{7:14.5f}{8:s}'\
-                            .format('E  ',elx+ely*nely+1,face,zero,zero,zero,zero,zero,'\n'))
+                    set_bc(file_obj, 'E  ', face, elx, ely)
 
 
-
+# Now read the corresponding .rea file
+#----------------------------------------------------------------------
 f = open(reafile.strip(), 'r') # open for read
 lines = f.readlines()
 f.close()
 
+# Write a new box.rea file which contains the mesh
+#----------------------------------------------------------------------
 f = open('box.rea', 'w') # open for write
 skip = False
 for i in lines:
