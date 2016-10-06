@@ -61,47 +61,54 @@ def write_mesh(file_obj):
         x0 = xstart
         y0 = y0 +dy
 
+# Set appropriate connecting elements and faces depending on type of boundary conditions
 def set_bc(file_obj, bctype, face, elx, ely):
     zero=float(0.0)
-    if (bctype == 'E  '): # Internal
-        if (face == 1): # south face: connected element is on row lower and conn face is on north
-            file_obj.write(' {0:3s} {1:2d} {2:2d}{3:10.5f}{4:14.5f}{5:14.5f}{6:14.5f}{7:14.5f}{8:s}'\
-                .format(bctype,elx+ely*nely+1,face,elx+(ely-1)*nely+1,3,zero,zero,zero,'\n'))
-        elif(face == 2):  # east face: connected element is on next column and conn face is west
-            file_obj.write(' {0:3s} {1:2d} {2:2d}{3:10.5f}{4:14.5f}{5:14.5f}{6:14.5f}{7:14.5f}{8:s}'\
-                .format('E  ',elx+ely*nely+1,face,elx+1+ely*nely+1,4,zero,zero,zero,'\n'))
-        elif(face == 3):  # north face: connected element is on row higher and conn face is south
-            file_obj.write(' {0:3s} {1:2d} {2:2d}{3:10.5f}{4:14.5f}{5:14.5f}{6:14.5f}{7:14.5f}{8:s}'\
-                .format('E  ',elx+ely*nely+1,face,elx+(ely+1)*nely+1,1,zero,zero,zero,'\n'))
-        elif(face == 4):  # west face: connected element is on previous colum and conn face is east
-            file_obj.write(' {0:3s} {1:2d} {2:2d}{3:10.5f}{4:14.5f}{5:14.5f}{6:14.5f}{7:14.5f}{8:s}'\
-                .format('E  ',elx+ely*nely+1,face,elx-1+ely*nely+1,2,zero,zero,zero,'\n'))
+    # No parameter needed
     if (bctype == 'W  '): # Wall
         file_obj.write(' {0:3s} {1:2d} {2:2d}{3:10.5f}{4:14.5f}{5:14.5f}{6:14.5f}{7:14.5f}{8:s}'\
             .format('W  ',elx+ely*nely+1,face,zero,zero,zero,zero,zero,'\n'))
     if (bctype == 'SYM'): # Symmetry
         file_obj.write(' {0:3s} {1:2d} {2:2d}{3:10.5f}{4:14.5f}{5:14.5f}{6:14.5f}{7:14.5f}{8:s}'\
             .format('SYM',elx+ely*nely+1,face,zero,zero,zero,zero,zero,'\n'))
+    if (bctype == 'v  '): # Dirichlet BC for velocity given in userbc
+         file_obj.write(' {0:3s} {1:2d} {2:2d}{3:10.5f}{4:14.5f}{5:14.5f}{6:14.5f}{7:14.5f}{8:s}'\
+            .format('v  ',elx+ely*nely+1,face,zero,zero,zero,zero,zero,'\n'))
+    # Connected element and face is needed
+    if (bctype == 'E  '): # Internal
+        if (face == 1): # south face: connected element is on row lower and conn face is on north
+            conn_el = elx + (ely-1)*nely+1
+            conn_face = 3
+        elif(face == 2):  # east face: connected element is on next column and conn face is west
+            conn_el = elx + 1 + ely*nely+1
+            conn_face = 4
+        elif(face == 3):  # north face: connected element is on row higher and conn face is south
+            conn_el = elx + (ely+1)*nely+1
+            conn_face = 1
+        elif(face == 4):  # west face: connected element is on previous colum and conn face is east
+            conn_el = elx-1 + ely*nely+1
+            conn_face = 2
+        file_obj.write(' {0:3s} {1:2d} {2:2d}{3:10.5f}{4:14.5f}{5:14.5f}{6:14.5f}{7:14.5f}{8:s}'\
+            .format('E  ',elx+ely*nely+1,face,conn_el,conn_face,zero,zero,zero,'\n'))
     if (bctype == 'P  '): # Periodic
         conn_el = 0
         conn_face = 0
-        if (face == 4): # west side: conn el and face are on east side
-            conn_el = nelx+ely*nely
-            conn_face = 2
-        elif (face == 3): # north side: conn el and face are on south side
-            conn_el = elx+0*nely+1
-            conn_face = 1
+        if (face == 1): # south side: conn el and face are on north side
+            conn_el = elx+(nely-1)*nely+1
+            conn_face = 3
         elif (face == 2): # east side: conn el and face are on west side
             conn_el = 1+ely*nely
             conn_face = 4
-        elif (face == 1): # south side: conn el and face are on north side
-            conn_el = elx+(nely-1)*nely+1
-            conn_face = 3
+        elif (face == 3): # north side: conn el and face are on south side
+            conn_el = elx+0*nely+1
+            conn_face = 1
+        elif (face == 4): # west side: conn el and face are on east side
+            conn_el = nelx+ely*nely
+            conn_face = 2
         file_obj.write(' {0:3s} {1:2d} {2:2d}{3:10.5f}{4:14.5f}{5:14.5f}{6:14.5f}{7:14.5f}{8:s}'\
             .format('P  ',elx+ely*nely+1,face,conn_el,conn_face,zero,zero,zero,'\n'))
 
 def write_bcs(file_obj):
-    zero=float(0.0)
     # Loop through all elements:
     for ely in range(0,nely):
         for elx in range(0,nelx):
@@ -149,42 +156,3 @@ for i in lines:
 
         
 f.close()
-
-
-
-## Skip parameter part
-#f.readline()
-#f.readline()
-#f.readline()
-#lineparams = f.readline()
-#print(lineparams)
-#str = lineparams.split(' ')
-#nparams = str[9]
-#for i in range(1, int(nparams)+1):
-#    f.readline()
-#
-## Skip passive scalars
-#lineparams = f.readline()
-#print(lineparams)
-#str = lineparams.split(' ')
-#nparams = str[6]
-#for i in range(1, int(nparams)+1):
-#    f.readline()
-#
-## Skip logical switches
-#lineparams = f.readline()
-#print(lineparams)
-#str = lineparams.split(' ')
-#nparams = str[10]
-#for i in range(1, int(nparams)+1):
-#    f.readline()
-#
-## Skip mesh header
-#str = f.readline()
-#print(str)
-#str = f.readline()
-#print(str)
-#
-#
-##f.write('This is a test\n')
-##f.close()
