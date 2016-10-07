@@ -59,16 +59,16 @@ def set_bc(file_obj, i, bctype, face, elx, ely, nelx, nely, cor_int_el):
     # Connected element and face is needed
     if (bctype[i] == 'E  '): # Internal
         if (face == 1): # south face: connected element is on row lower and conn face is on north
-            conn_el = n_prev + elx + (ely-1)*nely[i]+1
+            conn_el = n_prev + (elx+1) + (ely-1)*nely[i]
             conn_face = 3
         elif(face == 2):  # east face: connected element is on next column and conn face is west
-            conn_el = n_prev + elx + 1 + ely*nely[i]+1
+            conn_el = n_prev + (elx+1) + 1 + ely*nely[i]
             conn_face = 4
         elif(face == 3):  # north face: connected element is on row higher and conn face is south
-            conn_el = n_prev + elx + (ely+1)*nely[i]+1
+            conn_el = n_prev + (elx+1) + (ely+1)*nely[i]
             conn_face = 1
         elif(face == 4):  # west face: connected element is on previous colum and conn face is east
-            conn_el = n_prev + elx-1 + ely*nely[i]+1
+            conn_el = n_prev + (elx+1)-1 + ely*nely[i]
             conn_face = 2
         file_obj.write(' {0:3s} {1:2d} {2:2d}{3:10.5f}{4:14.5f}{5:14.5f}{6:14.5f}{7:14.5f}{8:s}'\
             .format('E  ',cur_el,face,conn_el,conn_face,zero,zero,zero,'\n'))
@@ -76,23 +76,22 @@ def set_bc(file_obj, i, bctype, face, elx, ely, nelx, nely, cor_int_el):
         conn_el = n_prev + 0
         conn_face = 0
         if (face == 1): # south side: conn el and face are on north side
-            conn_el = n_prev + elx+(nely[i]-1)*nely[i]+1
+            conn_el = n_prev + (elx+1) + (nely[i]-1)*nely[i]
             conn_face = 3
         elif (face == 2): # east side: conn el and face are on west side
-            conn_el = n_prev + 1+ely*nely[i]
+            conn_el = n_prev + 1 + ely*nely[i]
             conn_face = 4
         elif (face == 3): # north side: conn el and face are on south side
-            conn_el = n_prev + elx+0*nely[i]+1
+            conn_el = n_prev + (elx+1) + 0*nely[i]
             conn_face = 1
         elif (face == 4): # west side: conn el and face are on east side
-            conn_el = n_prev + nelx[i]+ely*nely[i]
+            conn_el = n_prev + nelx[i] + ely*nely[i]
             conn_face = 2
         file_obj.write(' {0:3s} {1:2d} {2:2d}{3:10.5f}{4:14.5f}{5:14.5f}{6:14.5f}{7:14.5f}{8:s}'\
             .format('P  ',cur_el,face,conn_el,conn_face,zero,zero,zero,'\n'))
     # internal BC specified by the user between two boxes
     elif ('E' in bctype[i] and bctype[i][1:3] != '  '):    
         # get number of connected boxes
-#        pdb.set_trace()
         conn_boxes = cor_int_el[bctype[i][1:3]]
         # choose the other box (different from i)
         if (conn_boxes[0] == i):
@@ -103,7 +102,37 @@ def set_bc(file_obj, i, bctype, face, elx, ely, nelx, nely, cor_int_el):
         nel_pre_con = 0
         for k in range(0,conn_box):
             nel_pre_con = nel_pre_con + nelx[k]*nely[k]
-##        pdb.set_trace()
+        if (face == 1): 
+            # south face: connected element is on top row in the conn box
+            # and conn face is on north
+            conn_el = nel_pre_con + (elx+1) + (nely-1)*nely[conn_box]
+            conn_face = 3
+        elif(face == 2):  # east face: connected element is on the first column in the conn box
+            # and conn face is west
+            conn_el = nel_pre_con + (0+1) + ely*nely[i]
+            conn_face = 4
+        elif(face == 3):  # north face: connected element is on the first row in the conn box
+            # and conn face is south
+            conn_el = nel_pre_con + (elx+1) + 0*nely[i]
+            conn_face = 1
+        elif(face == 4):  # west face: connected element is on the last colum and conn face is east
+            conn_el = nel_pre_con + nelx[conn_box] + ely*nely[i]
+            conn_face = 2
+        file_obj.write(' {0:3s} {1:2d} {2:2d}{3:10.5f}{4:14.5f}{5:14.5f}{6:14.5f}{7:14.5f}{8:s}'\
+            .format('E  ',cur_el,face,conn_el,conn_face,zero,zero,zero,'\n'))
+    # periodic BC specified by the user between two boxes
+    elif ('P' in bctype[i] and bctype[i][1:3] != '  '):    
+        # get number of connected boxes
+        conn_boxes = cor_int_el[bctype[i][1:3]]
+        # choose the other box (different from i)
+        if (conn_boxes[0] == i):
+            conn_box = conn_boxes[1]
+        else:
+            conn_box = conn_boxes[0]
+        # get number of elements in boxes previous to conn_box
+        nel_pre_con = 0
+        for k in range(0,conn_box):
+            nel_pre_con = nel_pre_con + nelx[k]*nely[k]
         if (face == 1): 
             # south face: connected element is on top row in the conn box
             # and conn face is on north
@@ -117,11 +146,11 @@ def set_bc(file_obj, i, bctype, face, elx, ely, nelx, nely, cor_int_el):
             # and conn face is south
             conn_el = nel_pre_con + elx + 0*nely[i]+1
             conn_face = 1
-        elif(face == 4):  # west face: connected element is on  colum and conn face is east
-            conn_el = n_prev + nelx[conn_box] + ely*nely[i]+1
+        elif(face == 4):  # west face: connected element is on the last colum and conn face is east
+            conn_el = nel_pre_con + nelx[conn_box] + ely*nely[i]
             conn_face = 2
         file_obj.write(' {0:3s} {1:2d} {2:2d}{3:10.5f}{4:14.5f}{5:14.5f}{6:14.5f}{7:14.5f}{8:s}'\
-            .format('E  ',cur_el,face,conn_el,conn_face,zero,zero,zero,'\n'))
+            .format('P  ',cur_el,face,conn_el,conn_face,zero,zero,zero,'\n'))
 
 
 def write_bcs(file_obj, nelx, nely, bcx0, bcx1, bcy0, bcy1, bcz0, bcz1):
