@@ -4,30 +4,39 @@
 import pdb # for debugging
 # Define some functions
 #----------------------------------------------------------------------
-def write_mesh(file_obj, xstart, xend, ystart, yend, nelx, nely, spatial_dim, dx, dy, n_tot, n_prev):
-    # copy element locations
-    x0 = xstart
-    x1 = xend
-    y0 = ystart
-    y1 = yend
-    # only write header for the first box
-    if (n_prev == 0):
-        file_obj.write('{0:10d} {1:10d} {2:10d}'.format(n_tot,spatial_dim,n_tot))
-        file_obj.write(' NEL,NDIM,NELV\n')
-    # Loop through all elements
-    for ely in range(0,nely):
-        for elx in range(0,nelx):
-            elem_number = elx + ely*nely + 1 + n_prev
-            file_obj.write('{0:>19s} {1:10d} {2:6s}{3:1s}{4:12s}'.format\
-                    ('ELEMENT',elem_number,'[    1','a',']  GROUP  0\n'))
-            file_obj.write('{0: 10.5f}{1: 14.5f}{2: 14.5f}{3: 14.5f} {4:s}'.format\
-                    (x0,x0+dx,x0+dx,x0,'\n'))   # x coordinates
-            file_obj.write('{0: 10.5f}{1: 14.5f}{2: 14.5f}{3: 14.5f} {4:s}'.format\
-                    (y0,y0,y0+dy,y0+dy,'\n'))  # y coordinates
-            # update element locations
-            x0 = x0+dx
-        x0 = xstart
-        y0 = y0 +dy
+def write_mesh(file_obj, xstart, xend, ystart, yend, nelx, nely, spatial_dim, dx, dy):
+    n_tot = 0   # total number of elements in all blocks
+    for i in range(0,len(nelx)):
+        n_tot = n_tot + nelx[i]*nely[i]
+    # write header 
+    file_obj.write('{0:10d} {1:10d} {2:10d}'.format(n_tot,spatial_dim,n_tot))
+    file_obj.write(' NEL,NDIM,NELV\n')
+
+    # write elements for all blocks
+    n_prev = 0  # number of elements in all previous blocks
+    for i in range(0,len(nelx)):    # loop through all blocks
+        # copy element locations
+#        pdb.set_trace()
+        x0 = xstart[i]
+        x1 = xend[i]
+        deltax = dx[i]
+        y0 = ystart[i]
+        y1 = yend[i]
+        deltay = dy[i]
+        for ely in range(0,nely[i]):    # Loop through all elements
+            for elx in range(0,nelx[i]):
+                elem_number = elx + ely*nely[i] + 1 + n_prev
+                file_obj.write('{0:>19s} {1:10d} {2:6s}{3:1s}{4:12s}'.format\
+                        ('ELEMENT',elem_number,'[    1','a',']  GROUP  0\n'))
+                file_obj.write('{0: 10.5f}{1: 14.5f}{2: 14.5f}{3: 14.5f} {4:s}'.format\
+                        (x0,x0+deltax,x0+deltax,x0,'\n'))   # x coordinates
+                file_obj.write('{0: 10.5f}{1: 14.5f}{2: 14.5f}{3: 14.5f} {4:s}'.format\
+                        (y0,y0,y0+deltay,y0+deltay,'\n'))  # y coordinates
+                # update element locations
+                x0 = x0+deltax
+            x0 = xstart[i]
+            y0 = y0 +deltay
+        n_prev = n_prev + nelx[i]*nely[i]   # update n_prev
 
 # Set appropriate connecting elements and faces depending on type of boundary conditions
 def set_bc(file_obj, bctype, face, elx, ely, nelx, nely, n_prev):
@@ -78,24 +87,28 @@ def set_bc(file_obj, bctype, face, elx, ely, nelx, nely, n_prev):
         file_obj.write(' {0:3s} {1:2d} {2:2d}{3:10.5f}{4:14.5f}{5:14.5f}{6:14.5f}{7:14.5f}{8:s}'\
             .format('P  ',cur_el,face,conn_el,conn_face,zero,zero,zero,'\n'))
 
-def write_bcs(file_obj, nelx, nely, bcx0, bcx1, bcy0, bcy1, bcz0, bcz1, n_prev):
-    # Loop through all elements:
-    for ely in range(0,nely):
-        for elx in range(0,nelx):
-            # Loop over all faces
-            for face in range(1,5):
-                # check if we are at the boundary
-                if (elx == 0 and face == 4):  # west side
-                    set_bc(file_obj, bcx0, face, elx, ely, nelx, nely, n_prev)
-                elif (elx == nelx-1 and face == 2):  # east side
-                    set_bc(file_obj, bcx1, face, elx, ely, nelx, nely, n_prev)
-                elif (ely == 0 and face == 1):  # south side
-                    set_bc(file_obj, bcy0, face, elx, ely, nelx, nely, n_prev)
-                elif (ely == nely-1 and face == 3):  # north side
-                    set_bc(file_obj, bcy1, face, elx, ely, nelx, nely, n_prev)
-                # This is the inside
-                else: 
-                    set_bc(file_obj, 'E  ', face, elx, ely, nelx, nely, n_prev)
+def write_bcs(file_obj, nelx, nely, bcx0, bcx1, bcy0, bcy1, bcz0, bcz1):
+    # Loop through all blocks
+    n_prev = 0
+    for i in range(0,len(nelx)):
+        # Loop through all elements:
+        for ely in range(0,nely[i]):
+            for elx in range(0,nelx[i]):
+                # Loop over all faces
+                for face in range(1,5):
+                    # check if we are at the boundary
+                    if (elx == 0 and face == 4):  # west side
+                        set_bc(file_obj, bcx0[i], face, elx, ely, nelx[i], nely[i], n_prev)
+                    elif (elx == nelx[i]-1 and face == 2):  # east side
+                        set_bc(file_obj, bcx1[i], face, elx, ely, nelx[i], nely[i], n_prev)
+                    elif (ely == 0 and face == 1):  # south side
+                        set_bc(file_obj, bcy0[i], face, elx, ely, nelx[i], nely[i], n_prev)
+                    elif (ely == nely[i]-1 and face == 3):  # north side
+                        set_bc(file_obj, bcy1[i], face, elx, ely, nelx[i], nely[i], n_prev)
+                    # This is the inside
+                    else: 
+                        set_bc(file_obj, 'E  ', face, elx, ely, nelx[i], nely[i], n_prev)
+        n_prev = n_prev + nelx[i]*nely[i]
 
 # Read the .box file
 #----------------------------------------------------------------------
@@ -201,21 +214,14 @@ skip = False
 for i in lines:
     if('MESH DATA' in i):
         f.write(i)
-        n_prev = 0  # number of elements in previous boxes
-        for h in range(0,j):
-            write_mesh(f, xstart[h], xend[h], ystart[h], yend[h], \
-                    nelx[h], nely[h], spatial_dim, dx[h], dy[h], n_total, n_prev)
-            n_prev = n_prev + nelx[h] * nely[h]
+        write_mesh(f, xstart, xend, ystart, yend, \
+                nelx, nely, spatial_dim, dx, dy)
         skip = True
     if('CURVED SIDE DATA' in i):
         skip = False
     if('FLUID   BOUNDARY' in i):
         f.write(i)
-        n_prev = 0
-        for h in range(0,j):
-            write_bcs(f, nelx[h], nely[h], \
-                    bcx0[h], bcx1[h], bcy0[h], bcy1[h], bcz0[h], bcz1[h], n_prev)
-            n_prev = n_prev + nelx[h] * nely[h]
+        write_bcs(f, nelx, nely, bcx0, bcx1, bcy0, bcy1, bcz0, bcz1)
         skip = True
     if('NO THERMAL BOUNDARY' in i):
         skip = False
