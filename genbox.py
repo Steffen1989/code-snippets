@@ -10,9 +10,19 @@ import pdb # for debugging
 # Define some functions which we need later on
 #----------------------------------------------------------------------
 
+# Function for calculating the length of the first element
+#----------------------------------------------------------------------
+def calc_L0 (start, end, ratio, nelx):
+    denominator = 0 # initialize
+    for i in range(0,nelx):
+        denominator = denominator + ratio**(i)
+    L0 = (end - start)/denominator
+    return L0
+
 # Function for writing the mesh in a correct format into .rea file
 #---------------------------------------------------------------------- 
-def write_mesh(file_obj, xstart, xend, ystart, yend, nelx, nely, spatial_dim, dx, dy):
+def write_mesh(file_obj, xstart, xend, xratio, ystart, yend, yratio, \
+        nelx, nely, spatial_dim, dx, dy):
     n_tot = 0   # total number of elements in all blocks
     for i in range(0,len(nelx)):
         n_tot = n_tot + nelx[i]*nely[i]
@@ -27,23 +37,34 @@ def write_mesh(file_obj, xstart, xend, ystart, yend, nelx, nely, spatial_dim, dx
 #        pdb.set_trace()
         x0 = xstart[i]
         x1 = xend[i]
-        deltax = dx[i]
+        xr = xratio[i]
+        dx0 = calc_L0(x0, x1, xr, nelx[i])
+        dx = dx0    # initial value for dx
+#        deltax = dx[i]
         y0 = ystart[i]
         y1 = yend[i]
-        deltay = dy[i]
+        yr = yratio[i]
+        dy0 = calc_L0(y0, y1, yr, nely[i])
+        dy = dy0    # initial value
+#        deltay = dy[i]
         for ely in range(0,nely[i]):    # Loop through all elements
             for elx in range(0,nelx[i]):
                 elem_number = elx + ely*nely[i] + 1 + n_prev
                 file_obj.write('{0:>19s} {1:10d} {2:6s}{3:1s}{4:12s}'.format\
                         ('ELEMENT',elem_number,'[    1','a',']  GROUP  0\n'))
                 file_obj.write('{0: 10.5f}{1: 14.5f}{2: 14.5f}{3: 14.5f} {4:s}'.format\
-                        (x0,x0+deltax,x0+deltax,x0,'\n'))   # x coordinates
+                        (x0,x0+dx,x0+dx,x0,'\n'))   # x coordinates
                 file_obj.write('{0: 10.5f}{1: 14.5f}{2: 14.5f}{3: 14.5f} {4:s}'.format\
-                        (y0,y0,y0+deltay,y0+deltay,'\n'))  # y coordinates
-                # update element locations
-                x0 = x0+deltax
+                        (y0,y0,y0+dy,y0+dy,'\n'))  # y coordinates
+                # update element locations and ratios
+                x0 = x0+dx
+                dx = dx*xr
+            # update and reset element locations and ratios
             x0 = xstart[i]
-            y0 = y0 +deltay
+            dx = dx0
+            y0 = y0 +dy
+            dy = dy*yr
+        y0 = ystart[i]
         n_prev = n_prev + nelx[i]*nely[i]   # update n_prev
 
 
@@ -258,7 +279,7 @@ def write_bcs(file_obj, nelx, nely, bcx0, bcx1, bcy0, bcy1, bcz0, bcz1):
 # Read the .box file
 #----------------------------------------------------------------------
 #boxfile = input('--> ')
-boxfile = 'rough_block.box6'
+boxfile = 'stream_005.box1'
 f = open(boxfile, 'r') # open for read
 lines = f.readlines() # everything is saved in variable "lines"
 f.close()
@@ -359,7 +380,7 @@ skip = False
 for i in lines:
     if('MESH DATA' in i):
         f.write(i)
-        write_mesh(f, xstart, xend, ystart, yend, \
+        write_mesh(f, xstart, xend, xratio, ystart, yend, yratio, \
                 nelx, nely, spatial_dim, dx, dy)
         skip = True
     if('CURVED SIDE DATA' in i):
