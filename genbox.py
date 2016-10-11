@@ -1,6 +1,10 @@
 # This python script is inspired by Nek5000's genbox tool for simple mesh generation
 # I want to use it to create a simple mesh for roughness simulations 
 # Therefore, periodic boundary conditions and internal BCs need to be prescribed in multiple boxes
+#oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo
+# Steffen Straub
+# 2016-10-11
+#oooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooooo
 
 # Import modules 
 #----------------------------------------------------------------------
@@ -67,6 +71,15 @@ def write_mesh(file_obj, xstart, xend, xratio, ystart, yend, yratio, \
         y0 = ystart[i]
         n_prev = n_prev + nelx[i]*nely[i]   # update n_prev
 
+# Function for writing formated text for BCs similar to nek5000 genbox
+# format specifications are tuned to mimic genbox.f's behaviour
+#----------------------------------------------------------------------
+def write_f(file_obj, bc, cur_el, dig_n_tot, f, conn_el, conn_face):
+    file_obj.write(' {boundary:3s}{current_el:{digits_n_tot}d} {face:2d}   \
+{con_el:<07.1f}{con_f:14.5f}{zero1:14.5f}{zero2:14.5f}{zero3:14.5f}    {newline:s}'\
+        .format(boundary=bc, current_el=cur_el, digits_n_tot=dig_n_tot, face=f,\
+        con_el=conn_el, con_f=conn_face,\
+        zero1=0.0,zero2=0.0,zero3=0.0,newline='\n'))
 
 # Function for repetetive tasks while writing the fluid BCs
 #----------------------------------------------------------------------
@@ -80,15 +93,8 @@ def set_bc(file_obj, i, bctype, face, elx, ely, nelx, nely, n_tot, cor_int_el, c
     cur_el = elx+1 + ely*nelx[i] + n_prev
     dig_n_tot = len(str(n_tot)) # digits of n_tot
     # No parameters needed
-    if (bctype[i] == 'W  '): # Wall
-        file_obj.write(' {0:3s}{1:{2}d} {3:2d}   {4:<07.1f}{5:14.5f}{6:14.5f}{7:14.5f}{8:14.5f}    {9:s}'\
-            .format('W  ',cur_el,dig_n_tot,face,zero,zero,zero,zero,zero,'\n'))
-    if (bctype[i] == 'SYM'): # Symmetry
-        file_obj.write(' {0:3s}{1:{2}d} {3:2d}   {4:<07.1f}{5:14.5f}{6:14.5f}{7:14.5f}{8:14.5f}    {9:s}'\
-            .format('SYM',cur_el,dig_n_tot,face,zero,zero,zero,zero,zero,'\n'))
-    if (bctype[i] == 'v  '): # Dirichlet BC for velocity given in userbc
-        file_obj.write(' {0:3s}{1:{2}d} {3:2d}   {4:<07.1f}{5:14.5f}{6:14.5f}{7:14.5f}{8:14.5f}    {9:s}'\
-            .format('v  ',cur_el,dig_n_tot,face,zero,zero,zero,zero,zero,'\n'))
+    if (bctype[i] == 'W  ' or bctype[i] == 'SYM' or bctype[i] == 'v  '):
+        write_f(file_obj, bctype[i], cur_el, dig_n_tot, face, 0.0, 0.0)
     # Connected element and face is needed
     if (bctype[i] == 'E  '): # Internal
         if (face == 1): # south face: connected element is on row lower and conn face is on north
@@ -103,8 +109,7 @@ def set_bc(file_obj, i, bctype, face, elx, ely, nelx, nely, n_tot, cor_int_el, c
         elif(face == 4):  # west face: connected element is on previous colum and conn face is east
             conn_el = n_prev + (elx+1)-1 + ely*nelx[i]
             conn_face = 2
-        file_obj.write(' {0:3s}{1:{2}d} {3:2d}   {4:<07.1f}{5:14.5f}{6:14.5f}{7:14.5f}{8:14.5f}    {9:s}'\
-            .format('E  ',cur_el,dig_n_tot,face,conn_el,conn_face,zero,zero,zero,'\n'))
+        write_f(file_obj, bctype[i], cur_el, dig_n_tot, face, conn_el, conn_face)
     elif (bctype[i] == 'P  '): # Periodic
         conn_el = n_prev + 0
         conn_face = 0
@@ -120,8 +125,7 @@ def set_bc(file_obj, i, bctype, face, elx, ely, nelx, nely, n_tot, cor_int_el, c
         elif (face == 4): # west side: conn el and face are on east side
             conn_el = n_prev + nelx[i] + ely*nelx[i]
             conn_face = 2
-        file_obj.write(' {0:3s}{1:{2}d} {3:2d}   {4:<07.1f}{5:14.5f}{6:14.5f}{7:14.5f}{8:14.5f}    {9:s}'\
-           .format('P  ',cur_el,dig_n_tot,face,conn_el,conn_face,zero,zero,zero,'\n'))
+        write_f(file_obj, bctype[i], cur_el, dig_n_tot, face, conn_el, conn_face)
     # internal BC specified by the user between two boxes
     elif ('E' in bctype[i] and bctype[i][1:3] != '  '):    
         # get number of connected boxes
@@ -152,8 +156,7 @@ def set_bc(file_obj, i, bctype, face, elx, ely, nelx, nely, n_tot, cor_int_el, c
         elif(face == 4):  # west face: connected element is on the last colum and conn face is east
             conn_el = nel_pre_con + nelx[conn_box] + ely*nelx[i]
             conn_face = 2
-        file_obj.write(' {0:3s}{1:{2}d} {3:2d}   {4:<07.1f}{5:14.5f}{6:14.5f}{7:14.5f}{8:14.5f}    {9:s}'\
-           .format('E  ',cur_el,dig_n_tot,face,conn_el,conn_face,zero,zero,zero,'\n'))
+        write_f(file_obj, 'E  ', cur_el, dig_n_tot, face, conn_el, conn_face)
     # periodic BC specified by the user between two boxes
     elif ('P' in bctype[i] and bctype[i][1:3] != '  '):    
         # get number of connected boxes
@@ -185,8 +188,7 @@ def set_bc(file_obj, i, bctype, face, elx, ely, nelx, nely, n_tot, cor_int_el, c
         elif(face == 4):  # west face: connected element is on the last colum and conn face is east
             conn_el = nel_pre_con + nelx[conn_box] + ely*nelx[i]
             conn_face = 2
-        file_obj.write(' {0:3s}{1:{2}d} {3:2d}   {4:<07.1f}{5:14.5f}{6:14.5f}{7:14.5f}{8:14.5f}    {9:s}'\
-           .format('P  ',cur_el,dig_n_tot,face,conn_el,conn_face,zero,zero,zero,'\n'))
+        write_f(file_obj, 'P  ', cur_el, dig_n_tot, face, conn_el, conn_face)
 
 # Function for adding a value to a key in a dictionary for internal and periodic BCs 
 # defined over multiple elements
@@ -205,7 +207,7 @@ def add_value(cor_block, key, dicti):
 def find_cor_el(nelx, nely, bcx0, bcx1, bcy0, bcy1):
     # Find corresponding user specified internal and periodic BCs between different blocks  
     cor_intern_el = {}  # dictionary of corresponding internal BCs (each as a pair of the two block numbers)
-    cor_period_el = {}
+    cor_period_el = {}  # example {'01':[0, 5]} means that BC01 is found in blocks 0 and 5
     key = 0  # key to this BC; they should be numbered: E01, E02, E03; P01, P02, P03
     for i in range(0,len(nelx)):
         if ('E' in bcx0[i] and bcx0[i][1:3] != '  '):
@@ -238,8 +240,8 @@ def find_cor_el(nelx, nely, bcx0, bcx1, bcy0, bcy1):
 # Function for writing the fluid BCs in a correct format into .rea file
 #----------------------------------------------------------------------
 def write_bcs(file_obj, nelx, nely, n_total, bcx0, bcx1, bcy0, bcy1, bcz0, bcz1):
+    # find the corresponding elements for internal or periodic BCs
     [cor_intern_el, cor_period_el] = find_cor_el(nelx, nely, bcx0, bcx1, bcy0, bcy1)
-#    pdb.set_trace()
     # Loop through all blocks
     n_prev = 0
     for i in range(0,len(nelx)):
@@ -250,29 +252,34 @@ def write_bcs(file_obj, nelx, nely, n_total, bcx0, bcx1, bcy0, bcy1, bcz0, bcz1)
                 for face in range(1,5):
                     # check if we are at the boundary
                     if (elx == 0 and face == 4):  # west side
-                        set_bc(file_obj, i, bcx0, face, elx, ely, nelx, nely, n_total, \
-                                cor_intern_el, cor_period_el)
+                        bc = bcx0
+                        f = 4
                     elif (elx == nelx[i]-1 and face == 2):  # east side
-                        set_bc(file_obj, i, bcx1, face, elx, ely, nelx, nely, n_total, \
-                                cor_intern_el, cor_period_el)
+                        bc = bcx1
+                        f = 2
                     elif (ely == 0 and face == 1):  # south side
-                        set_bc(file_obj, i, bcy0, face, elx, ely, nelx, nely, n_total, \
-                                cor_intern_el, cor_period_el)
+                        bc = bcy0
+                        f = 1
                     elif (ely == nely[i]-1 and face == 3):  # north side
-                        set_bc(file_obj, i, bcy1, face, elx, ely, nelx, nely, n_total, \
-                                cor_intern_el, cor_period_el)
+                        bc = bcy1
+                        f = 3
                     # This is the inside
                     else: 
                         # populate list for internal bctype
                         bc_int = []
                         for k in range(0,len(nelx)):
                             bc_int.append('E  ')
-                        set_bc(file_obj, i, bc_int, face, elx, ely, nelx, nely, n_total, \
-                                cor_intern_el, cor_period_el)
+                        bc = bc_int
+                        f = face
+                    # Set the BC for current element and face
+                    set_bc(file_obj, i, bc, f, elx, ely, nelx, nely, n_total, \
+                            cor_intern_el, cor_period_el)
+
         n_prev = n_prev + nelx[i]*nely[i]
 
 # End of function definitions
 # xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx        
+
 
 # ----------------------------------------------------------------------
 # MAIN PART OF THE PROGRAM
