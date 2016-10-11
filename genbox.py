@@ -22,10 +22,10 @@ def calc_L0 (start, end, ratio, nelx):
 # Function for writing the mesh in a correct format into .rea file
 #---------------------------------------------------------------------- 
 def write_mesh(file_obj, xstart, xend, xratio, ystart, yend, yratio, \
-        nelx, nely, spatial_dim, dx, dy):
-    n_tot = 0   # total number of elements in all blocks
-    for i in range(0,len(nelx)):
-        n_tot = n_tot + nelx[i]*nely[i]
+        nelx, nely, n_tot, spatial_dim, dx, dy):
+#    n_tot = 0   # total number of elements in all blocks
+#    for i in range(0,len(nelx)):
+#        n_tot = n_tot + nelx[i]*nely[i]
     # write header 
     file_obj.write('{0:10d} {1:10d} {2:10d}'.format(n_tot,spatial_dim,n_tot))
     file_obj.write(' NEL,NDIM,NELV\n')
@@ -49,12 +49,12 @@ def write_mesh(file_obj, xstart, xend, xratio, ystart, yend, yratio, \
 #        deltay = dy[i]
         for ely in range(0,nely[i]):    # Loop through all elements
             for elx in range(0,nelx[i]):
-                elem_number = elx + ely*nely[i] + 1 + n_prev
+                elem_number = elx + ely*nelx[i] + 1 + n_prev
                 file_obj.write('{0:>19s} {1:10d} {2:6s}{3:1s}{4:12s}'.format\
                         ('ELEMENT',elem_number,'[    1','a',']  GROUP  0\n'))
-                file_obj.write('{0: 10.5f}{1: 14.5f}{2: 14.5f}{3: 14.5f} {4:s}'.format\
+                file_obj.write('{0: 10.6f}{1: 14.6f}{2: 14.6f}{3: 14.6f}   {4:s}'.format\
                         (x0,x0+dx,x0+dx,x0,'\n'))   # x coordinates
-                file_obj.write('{0: 10.5f}{1: 14.5f}{2: 14.5f}{3: 14.5f} {4:s}'.format\
+                file_obj.write('{0: 10.6f}{1: 14.6f}{2: 14.6f}{3: 14.6f}   {4:s}'.format\
                         (y0,y0,y0+dy,y0+dy,'\n'))  # y coordinates
                 # update element locations and ratios
                 x0 = x0+dx
@@ -71,56 +71,57 @@ def write_mesh(file_obj, xstart, xend, xratio, ystart, yend, yratio, \
 # Function for repetetive tasks while writing the fluid BCs
 #----------------------------------------------------------------------
 # Set appropriate connecting elements and faces depending on type of boundary conditions
-def set_bc(file_obj, i, bctype, face, elx, ely, nelx, nely, cor_int_el, cor_per_el):
+def set_bc(file_obj, i, bctype, face, elx, ely, nelx, nely, n_tot, cor_int_el, cor_per_el):
     zero=float(0.0)
 #    pdb.set_trace()
     n_prev = 0 # number of elements in all previous boxes
     for k in range(0,i):
-        n_prev = n_prev + nelx[i]*nely[i]
-    cur_el = elx+1 + ely*nely[i] + n_prev
+        n_prev = n_prev + nelx[k]*nely[k]
+    cur_el = elx+1 + ely*nelx[i] + n_prev
+    dig_n_tot = len(str(n_tot)) # digits of n_tot
     # No parameters needed
     if (bctype[i] == 'W  '): # Wall
-        file_obj.write(' {0:3s}{1:3d} {2:2d}{3:10.5f}{4:14.5f}{5:14.5f}{6:14.5f}{7:14.5f}{8:s}'\
-            .format('W  ',cur_el,face,zero,zero,zero,zero,zero,'\n'))
+        file_obj.write(' {0:3s}{1:{2}d} {3:2d}   {4:<07.1f}{5:14.5f}{6:14.5f}{7:14.5f}{8:14.5f}    {9:s}'\
+            .format('W  ',cur_el,dig_n_tot,face,zero,zero,zero,zero,zero,'\n'))
     if (bctype[i] == 'SYM'): # Symmetry
-        file_obj.write(' {0:3s}{1:3d} {2:2d}{3:10.5f}{4:14.5f}{5:14.5f}{6:14.5f}{7:14.5f}{8:s}'\
-            .format('SYM',cur_el,face,zero,zero,zero,zero,zero,'\n'))
+        file_obj.write(' {0:3s}{1:{2}d} {3:2d}   {4:<07.1f}{5:14.5f}{6:14.5f}{7:14.5f}{8:14.5f}    {9:s}'\
+            .format('SYM',cur_el,dig_n_tot,face,zero,zero,zero,zero,zero,'\n'))
     if (bctype[i] == 'v  '): # Dirichlet BC for velocity given in userbc
-         file_obj.write(' {0:3s}{1:3d} {2:2d}{3:10.5f}{4:14.5f}{5:14.5f}{6:14.5f}{7:14.5f}{8:s}'\
-            .format('v  ',cur_el,face,zero,zero,zero,zero,zero,'\n'))
+        file_obj.write(' {0:3s}{1:{2}d} {3:2d}   {4:<07.1f}{5:14.5f}{6:14.5f}{7:14.5f}{8:14.5f}    {9:s}'\
+            .format('v  ',cur_el,dig_n_tot,face,zero,zero,zero,zero,zero,'\n'))
     # Connected element and face is needed
     if (bctype[i] == 'E  '): # Internal
         if (face == 1): # south face: connected element is on row lower and conn face is on north
-            conn_el = n_prev + (elx+1) + (ely-1)*nely[i]
+            conn_el = n_prev + (elx+1) + (ely-1)*nelx[i]
             conn_face = 3
         elif(face == 2):  # east face: connected element is on next column and conn face is west
-            conn_el = n_prev + (elx+1) + 1 + ely*nely[i]
+            conn_el = n_prev + (elx+1) + 1 + ely*nelx[i]
             conn_face = 4
         elif(face == 3):  # north face: connected element is on row higher and conn face is south
-            conn_el = n_prev + (elx+1) + (ely+1)*nely[i]
+            conn_el = n_prev + (elx+1) + (ely+1)*nelx[i]
             conn_face = 1
         elif(face == 4):  # west face: connected element is on previous colum and conn face is east
-            conn_el = n_prev + (elx+1)-1 + ely*nely[i]
+            conn_el = n_prev + (elx+1)-1 + ely*nelx[i]
             conn_face = 2
-        file_obj.write(' {0:3s}{1:3d} {2:2d}{3:10.5f}{4:14.5f}{5:14.5f}{6:14.5f}{7:14.5f}{8:s}'\
-            .format('E  ',cur_el,face,conn_el,conn_face,zero,zero,zero,'\n'))
+        file_obj.write(' {0:3s}{1:{2}d} {3:2d}   {4:<07.1f}{5:14.5f}{6:14.5f}{7:14.5f}{8:14.5f}    {9:s}'\
+            .format('E  ',cur_el,dig_n_tot,face,conn_el,conn_face,zero,zero,zero,'\n'))
     elif (bctype[i] == 'P  '): # Periodic
         conn_el = n_prev + 0
         conn_face = 0
         if (face == 1): # south side: conn el and face are on north side
-            conn_el = n_prev + (elx+1) + (nely[i]-1)*nely[i]
+            conn_el = n_prev + (elx+1) + (nely[i]-1)*nelx[i]
             conn_face = 3
         elif (face == 2): # east side: conn el and face are on west side
-            conn_el = n_prev + 1 + ely*nely[i]
+            conn_el = n_prev + 1 + ely*nelx[i]
             conn_face = 4
         elif (face == 3): # north side: conn el and face are on south side
-            conn_el = n_prev + (elx+1) + 0*nely[i]
+            conn_el = n_prev + (elx+1) + 0*nelx[i]
             conn_face = 1
         elif (face == 4): # west side: conn el and face are on east side
-            conn_el = n_prev + nelx[i] + ely*nely[i]
+            conn_el = n_prev + nelx[i] + ely*nelx[i]
             conn_face = 2
-        file_obj.write(' {0:3s}{1:3d} {2:2d}{3:10.5f}{4:14.5f}{5:14.5f}{6:14.5f}{7:14.5f}{8:s}'\
-            .format('P  ',cur_el,face,conn_el,conn_face,zero,zero,zero,'\n'))
+        file_obj.write(' {0:3s}{1:{2}d} {3:2d}   {4:<07.1f}{5:14.5f}{6:14.5f}{7:14.5f}{8:14.5f}    {9:s}'\
+           .format('P  ',cur_el,dig_n_tot,face,conn_el,conn_face,zero,zero,zero,'\n'))
     # internal BC specified by the user between two boxes
     elif ('E' in bctype[i] and bctype[i][1:3] != '  '):    
         # get number of connected boxes
@@ -132,26 +133,27 @@ def set_bc(file_obj, i, bctype, face, elx, ely, nelx, nely, cor_int_el, cor_per_
             conn_box = conn_boxes[0]
         # get number of elements in boxes previous to conn_box
         nel_pre_con = 0
+#        pdb.set_trace()
         for k in range(0,conn_box):
             nel_pre_con = nel_pre_con + nelx[k]*nely[k]
         if (face == 1): 
             # south face: connected element is on top row in the conn box
             # and conn face is on north
-            conn_el = nel_pre_con + (elx+1) + (nely[conn_box]-1)*nely[conn_box]
+            conn_el = nel_pre_con + (elx+1) + (nely[conn_box]-1)*nelx[conn_box]
             conn_face = 3
         elif(face == 2):  # east face: connected element is on the first column in the conn box
             # and conn face is west
-            conn_el = nel_pre_con + (0+1) + ely*nely[i]
+            conn_el = nel_pre_con + (0+1) + ely*nelx[i]
             conn_face = 4
         elif(face == 3):  # north face: connected element is on the first row in the conn box
             # and conn face is south
-            conn_el = nel_pre_con + (elx+1) + 0*nely[i]
+            conn_el = nel_pre_con + (elx+1) + 0*nelx[i]
             conn_face = 1
         elif(face == 4):  # west face: connected element is on the last colum and conn face is east
-            conn_el = nel_pre_con + nelx[conn_box] + ely*nely[i]
+            conn_el = nel_pre_con + nelx[conn_box] + ely*nelx[i]
             conn_face = 2
-        file_obj.write(' {0:3s}{1:3d} {2:2d}{3:10.5f}{4:14.5f}{5:14.5f}{6:14.5f}{7:14.5f}{8:s}'\
-            .format('E  ',cur_el,face,conn_el,conn_face,zero,zero,zero,'\n'))
+        file_obj.write(' {0:3s}{1:{2}d} {3:2d}   {4:<07.1f}{5:14.5f}{6:14.5f}{7:14.5f}{8:14.5f}    {9:s}'\
+           .format('E  ',cur_el,dig_n_tot,face,conn_el,conn_face,zero,zero,zero,'\n'))
     # periodic BC specified by the user between two boxes
     elif ('P' in bctype[i] and bctype[i][1:3] != '  '):    
         # get number of connected boxes
@@ -170,21 +172,21 @@ def set_bc(file_obj, i, bctype, face, elx, ely, nelx, nely, cor_int_el, cor_per_
         if (face == 1): 
             # south face: connected element is on top row in the conn box
             # and conn face is on north
-            conn_el = nel_pre_con + elx + (nely-1)*nely[conn_box]+1
+            conn_el = nel_pre_con + elx + (nely-1)*nelx[conn_box]+1
             conn_face = 3
         elif(face == 2):  # east face: connected element is on the first column in the conn box
             # and conn face is west
-            conn_el = nel_pre_con + 0 + ely*nely[i]+1
+            conn_el = nel_pre_con + 0 + ely*nelx[i]+1
             conn_face = 4
         elif(face == 3):  # north face: connected element is on the first row in the conn box
             # and conn face is south
-            conn_el = nel_pre_con + elx + 0*nely[i]+1
+            conn_el = nel_pre_con + elx + 0*nelx[i]+1
             conn_face = 1
         elif(face == 4):  # west face: connected element is on the last colum and conn face is east
-            conn_el = nel_pre_con + nelx[conn_box] + ely*nely[i]
+            conn_el = nel_pre_con + nelx[conn_box] + ely*nelx[i]
             conn_face = 2
-        file_obj.write(' {0:3s}{1:3d} {2:2d}{3:10.5f}{4:14.5f}{5:14.5f}{6:14.5f}{7:14.5f}{8:s}'\
-            .format('P  ',cur_el,face,conn_el,conn_face,zero,zero,zero,'\n'))
+        file_obj.write(' {0:3s}{1:{2}d} {3:2d}   {4:<07.1f}{5:14.5f}{6:14.5f}{7:14.5f}{8:14.5f}    {9:s}'\
+           .format('P  ',cur_el,dig_n_tot,face,conn_el,conn_face,zero,zero,zero,'\n'))
 
 # Function for adding a value to a key in a dictionary for internal and periodic BCs 
 # defined over multiple elements
@@ -235,7 +237,7 @@ def find_cor_el(nelx, nely, bcx0, bcx1, bcy0, bcy1):
 
 # Function for writing the fluid BCs in a correct format into .rea file
 #----------------------------------------------------------------------
-def write_bcs(file_obj, nelx, nely, bcx0, bcx1, bcy0, bcy1, bcz0, bcz1):
+def write_bcs(file_obj, nelx, nely, n_total, bcx0, bcx1, bcy0, bcy1, bcz0, bcz1):
     [cor_intern_el, cor_period_el] = find_cor_el(nelx, nely, bcx0, bcx1, bcy0, bcy1)
 #    pdb.set_trace()
     # Loop through all blocks
@@ -248,16 +250,16 @@ def write_bcs(file_obj, nelx, nely, bcx0, bcx1, bcy0, bcy1, bcz0, bcz1):
                 for face in range(1,5):
                     # check if we are at the boundary
                     if (elx == 0 and face == 4):  # west side
-                        set_bc(file_obj, i, bcx0, face, elx, ely, nelx, nely, \
+                        set_bc(file_obj, i, bcx0, face, elx, ely, nelx, nely, n_total, \
                                 cor_intern_el, cor_period_el)
                     elif (elx == nelx[i]-1 and face == 2):  # east side
-                        set_bc(file_obj, i, bcx1, face, elx, ely, nelx, nely, \
+                        set_bc(file_obj, i, bcx1, face, elx, ely, nelx, nely, n_total, \
                                 cor_intern_el, cor_period_el)
                     elif (ely == 0 and face == 1):  # south side
-                        set_bc(file_obj, i, bcy0, face, elx, ely, nelx, nely, \
+                        set_bc(file_obj, i, bcy0, face, elx, ely, nelx, nely, n_total, \
                                 cor_intern_el, cor_period_el)
                     elif (ely == nely[i]-1 and face == 3):  # north side
-                        set_bc(file_obj, i, bcy1, face, elx, ely, nelx, nely, \
+                        set_bc(file_obj, i, bcy1, face, elx, ely, nelx, nely, n_total, \
                                 cor_intern_el, cor_period_el)
                     # This is the inside
                     else: 
@@ -265,7 +267,7 @@ def write_bcs(file_obj, nelx, nely, bcx0, bcx1, bcy0, bcy1, bcz0, bcz1):
                         bc_int = []
                         for k in range(0,len(nelx)):
                             bc_int.append('E  ')
-                        set_bc(file_obj, i, bc_int, face, elx, ely, nelx, nely, \
+                        set_bc(file_obj, i, bc_int, face, elx, ely, nelx, nely, n_total, \
                                 cor_intern_el, cor_period_el)
         n_prev = n_prev + nelx[i]*nely[i]
 
@@ -279,7 +281,7 @@ def write_bcs(file_obj, nelx, nely, bcx0, bcx1, bcy0, bcy1, bcz0, bcz1):
 # Read the .box file
 #----------------------------------------------------------------------
 #boxfile = input('--> ')
-boxfile = 'stream_005.box1'
+boxfile = 'rough_block.box5'
 f = open(boxfile, 'r') # open for read
 lines = f.readlines() # everything is saved in variable "lines"
 f.close()
@@ -381,13 +383,13 @@ for i in lines:
     if('MESH DATA' in i):
         f.write(i)
         write_mesh(f, xstart, xend, xratio, ystart, yend, yratio, \
-                nelx, nely, spatial_dim, dx, dy)
+                nelx, nely, n_total, spatial_dim, dx, dy)
         skip = True
     if('CURVED SIDE DATA' in i):
         skip = False
     if('FLUID   BOUNDARY' in i):
         f.write(i)
-        write_bcs(f, nelx, nely, bcx0, bcx1, bcy0, bcy1, bcz0, bcz1)
+        write_bcs(f, nelx, nely, n_total, bcx0, bcx1, bcy0, bcy1, bcz0, bcz1)
         skip = True
     if('NO THERMAL BOUNDARY' in i):
         skip = False
