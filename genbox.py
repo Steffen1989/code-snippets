@@ -81,63 +81,20 @@ def write_f(file_obj, bc, cur_el, dig_n_tot, f, conn_el, conn_face):
         con_el=conn_el, con_f=conn_face,\
         zero1=0.0,zero2=0.0,zero3=0.0,newline='\n'))
 
-# Function for repetetive tasks while writing the fluid BCs
+# Function for finding the corresponding elements and faces to a certain face of
+# a userspecified BC
 #----------------------------------------------------------------------
-# Set appropriate connecting elements and faces depending on type of boundary conditions
-def set_bc(file_obj, i, bctype, face, elx, ely, nelx, nely, n_tot, cor_int_el, cor_per_el):
-    zero=float(0.0)
-#    pdb.set_trace()
-    n_prev = 0 # number of elements in all previous boxes
-    for k in range(0,i):
-        n_prev = n_prev + nelx[k]*nely[k]
-    cur_el = elx+1 + ely*nelx[i] + n_prev
-    dig_n_tot = len(str(n_tot)) # digits of n_tot
-    # No parameters needed
-    if (bctype[i] == 'W  ' or bctype[i] == 'SYM' or bctype[i] == 'v  '):
-        write_f(file_obj, bctype[i], cur_el, dig_n_tot, face, 0.0, 0.0)
-    # Connected element and face is needed
-    if (bctype[i] == 'E  '): # Internal
-        if (face == 1): # south face: connected element is on row lower and conn face is on north
-            conn_el = n_prev + (elx+1) + (ely-1)*nelx[i]
-            conn_face = 3
-        elif(face == 2):  # east face: connected element is on next column and conn face is west
-            conn_el = n_prev + (elx+1) + 1 + ely*nelx[i]
-            conn_face = 4
-        elif(face == 3):  # north face: connected element is on row higher and conn face is south
-            conn_el = n_prev + (elx+1) + (ely+1)*nelx[i]
-            conn_face = 1
-        elif(face == 4):  # west face: connected element is on previous colum and conn face is east
-            conn_el = n_prev + (elx+1)-1 + ely*nelx[i]
-            conn_face = 2
-        write_f(file_obj, bctype[i], cur_el, dig_n_tot, face, conn_el, conn_face)
-    elif (bctype[i] == 'P  '): # Periodic
-        conn_el = n_prev + 0
-        conn_face = 0
-        if (face == 1): # south side: conn el and face are on north side
-            conn_el = n_prev + (elx+1) + (nely[i]-1)*nelx[i]
-            conn_face = 3
-        elif (face == 2): # east side: conn el and face are on west side
-            conn_el = n_prev + 1 + ely*nelx[i]
-            conn_face = 4
-        elif (face == 3): # north side: conn el and face are on south side
-            conn_el = n_prev + (elx+1) + 0*nelx[i]
-            conn_face = 1
-        elif (face == 4): # west side: conn el and face are on east side
-            conn_el = n_prev + nelx[i] + ely*nelx[i]
-            conn_face = 2
-        write_f(file_obj, bctype[i], cur_el, dig_n_tot, face, conn_el, conn_face)
-    # internal BC specified by the user between two boxes
-    elif ('E' in bctype[i] and bctype[i][1:3] != '  '):    
+def get_con_el_f(i, cor_el_dict, bctype, face, elx, ely, nelx, nely):
         # get number of connected boxes
-        conn_boxes = cor_int_el[bctype[i][1:3]]
+        conn_boxes = cor_el_dict[bctype[i][1:3]]
         # choose the other box (different from i)
+        # i is the current block
         if (conn_boxes[0] == i):
             conn_box = conn_boxes[1]
         else:
             conn_box = conn_boxes[0]
         # get number of elements in boxes previous to conn_box
         nel_pre_con = 0
-#        pdb.set_trace()
         for k in range(0,conn_box):
             nel_pre_con = nel_pre_con + nelx[k]*nely[k]
         if (face == 1): 
@@ -156,39 +113,65 @@ def set_bc(file_obj, i, bctype, face, elx, ely, nelx, nely, n_tot, cor_int_el, c
         elif(face == 4):  # west face: connected element is on the last colum and conn face is east
             conn_el = nel_pre_con + nelx[conn_box] + ely*nelx[i]
             conn_face = 2
+
+        return conn_el, conn_face
+
+
+# Function for repetetive tasks while writing the fluid BCs
+#----------------------------------------------------------------------
+# Set appropriate connecting elements and faces depending on type of boundary conditions
+def set_bc(file_obj, i, bctype, face, elx, ely, nelx, nely, n_tot, cor_int_el, cor_per_el):
+    zero=float(0.0)
+#    pdb.set_trace()
+    n_prev = 0 # number of elements in all previous boxes
+    for k in range(0,i):
+        n_prev = n_prev + nelx[k]*nely[k]
+    cur_el = elx+1 + ely*nelx[i] + n_prev
+    dig_n_tot = len(str(n_tot)) # digits of n_tot
+    # No parameters needed
+    if (bctype[i] == 'W  ' or bctype[i] == 'SYM' or bctype[i] == 'v  '):
+        write_f(file_obj, bctype[i], cur_el, dig_n_tot, face, 0.0, 0.0)
+    # Connected element and face is needed
+    elif (bctype[i] == 'E  '): # Internal
+        if (face == 1): # south face: connected element is on row lower and conn face is on north
+            conn_el = n_prev + (elx+1) + (ely-1)*nelx[i]
+            conn_face = 3
+        elif(face == 2):  # east face: connected element is on next column and conn face is west
+            conn_el = n_prev + (elx+1) + 1 + ely*nelx[i]
+            conn_face = 4
+        elif(face == 3):  # north face: connected element is on row higher and conn face is south
+            conn_el = n_prev + (elx+1) + (ely+1)*nelx[i]
+            conn_face = 1
+        elif(face == 4):  # west face: connected element is on previous colum and conn face is east
+            conn_el = n_prev + (elx+1)-1 + ely*nelx[i]
+            conn_face = 2
+        write_f(file_obj, bctype[i], cur_el, dig_n_tot, face, conn_el, conn_face)
+    elif (bctype[i] == 'P  '): # Periodic
+        if (face == 1): # south side: conn el and face are on north side
+            conn_el = n_prev + (elx+1) + (nely[i]-1)*nelx[i]
+            conn_face = 3
+        elif (face == 2): # east side: conn el and face are on west side
+            conn_el = n_prev + 1 + ely*nelx[i]
+            conn_face = 4
+        elif (face == 3): # north side: conn el and face are on south side
+            conn_el = n_prev + (elx+1) + 0*nelx[i]
+            conn_face = 1
+        elif (face == 4): # west side: conn el and face are on east side
+            conn_el = n_prev + nelx[i] + ely*nelx[i]
+            conn_face = 2
+        write_f(file_obj, bctype[i], cur_el, dig_n_tot, face, conn_el, conn_face)
+    # internal or periodic BC specified by the user between two boxes
+    elif ( 'E' in bctype[i]  and bctype[i][1:3] != '  '):    
+        # get the corresponding connected element and face
+        [conn_el, conn_face] = get_con_el_f(i, cor_int_el, bctype, face, elx, ely, nelx, nely)
         write_f(file_obj, 'E  ', cur_el, dig_n_tot, face, conn_el, conn_face)
+    
     # periodic BC specified by the user between two boxes
     elif ('P' in bctype[i] and bctype[i][1:3] != '  '):    
-        # get number of connected boxes
-        conn_boxes = cor_per_el[bctype[i][1:3]]
-#        pdb.set_trace()
-        # choose the other box (different from i)
-        if (conn_boxes[0] == i):
-            conn_box = conn_boxes[1]
-        else:
-            conn_box = conn_boxes[0]
-        # get number of elements in boxes previous to conn_box
-        nel_pre_con = 0
-        for k in range(0,conn_box):
-            nel_pre_con = nel_pre_con + nelx[k]*nely[k]
-#        pdb.set_trace()
-        if (face == 1): 
-            # south face: connected element is on top row in the conn box
-            # and conn face is on north
-            conn_el = nel_pre_con + elx + (nely-1)*nelx[conn_box]+1
-            conn_face = 3
-        elif(face == 2):  # east face: connected element is on the first column in the conn box
-            # and conn face is west
-            conn_el = nel_pre_con + 0 + ely*nelx[i]+1
-            conn_face = 4
-        elif(face == 3):  # north face: connected element is on the first row in the conn box
-            # and conn face is south
-            conn_el = nel_pre_con + elx + 0*nelx[i]+1
-            conn_face = 1
-        elif(face == 4):  # west face: connected element is on the last colum and conn face is east
-            conn_el = nel_pre_con + nelx[conn_box] + ely*nelx[i]
-            conn_face = 2
+        # get the corresponding connected element and face
+        [conn_el, conn_face] = get_con_el_f(i, cor_per_el, bctype, face, elx, ely, nelx, nely)
         write_f(file_obj, 'P  ', cur_el, dig_n_tot, face, conn_el, conn_face)
+
 
 # Function for adding a value to a key in a dictionary for internal and periodic BCs 
 # defined over multiple elements
