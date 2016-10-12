@@ -31,16 +31,6 @@ def calc_pts(start, end, ratio, nel):
     return pts
 
 
-
-## Function for calculating the length of the first element
-##----------------------------------------------------------------------
-#def calc_L0 (start, end, ratio, nelx):
-#    denominator = 0 # initialize
-#    for i in range(0,nelx):
-#        denominator = denominator + ratio**(i)
-#    L0 = (end - start)/denominator
-#    return L0
-
 # Function for writing the mesh in a correct format into .rea file
 #---------------------------------------------------------------------- 
 def write_mesh(file_obj, xpts, ypts, \
@@ -52,23 +42,8 @@ def write_mesh(file_obj, xpts, ypts, \
     # write elements for all blocks
     n_prev = 0  # number of elements in all previous blocks
     for i in range(0,len(nelx)):    # loop through all blocks
-#        # copy element locations
-##        pdb.set_trace()
-#        x0 = xstart[i]
-#        x1 = xend[i]
-#        xr = xratio[i]
-#        dx0 = calc_L0(x0, x1, xr, nelx[i])
-#        dx = dx0    # initial value for dx
-##        deltax = dx[i]
-#        y0 = ystart[i]
-#        y1 = yend[i]
-#        yr = yratio[i]
-#        dy0 = calc_L0(y0, y1, yr, nely[i])
-#        dy = dy0    # initial value
-##        deltay = dy[i]
         for ely in range(0,nely[i]):    # Loop through all elements
             for elx in range(0,nelx[i]):
-#                pdb.set_trace()
                 elem_number = elx + ely*nelx[i] + 1 + n_prev
                 file_obj.write('{0:>19s} {1:10d} {2:6s}{3:1s}{4:12s}'.format\
                         ('ELEMENT',elem_number,'[    1','a',']  GROUP  0\n'))
@@ -76,16 +51,8 @@ def write_mesh(file_obj, xpts, ypts, \
                         (xpts[i][elx],xpts[i][elx+1],xpts[i][elx+1],xpts[i][elx],'\n'))   # x coordinates
                 file_obj.write('{0: 10.6f}{1: 14.6f}{2: 14.6f}{3: 14.6f}   {4:s}'.format\
                         (ypts[i][ely],ypts[i][ely],ypts[i][ely+1],ypts[i][ely+1],'\n'))  # y coordinates
-#                # update element locations and ratios
-#                x0 = x0+dx
-#                dx = dx*xr
-#            # update and reset element locations and ratios
-#            x0 = xstart[i]
-#            dx = dx0
-#            y0 = y0 +dy
-#            dy = dy*yr
-#        y0 = ystart[i]
         n_prev = n_prev + nelx[i]*nely[i]   # update n_prev
+
 
 # Function for writing formated text for BCs similar to nek5000 genbox
 # format specifications are tuned to mimic genbox.f's behaviour
@@ -96,6 +63,7 @@ def write_f(file_obj, bc, cur_el, dig_n_tot, f, conn_el, conn_face):
         .format(boundary=bc, current_el=cur_el, digits_n_tot=dig_n_tot, face=f,\
         con_el=conn_el, con_f=conn_face,\
         zero1=0.0,zero2=0.0,zero3=0.0,newline='\n'))
+
 
 # Function for finding the corresponding elements and faces to a certain face of
 # a userspecified BC
@@ -129,7 +97,6 @@ def get_con_el_f(i, cor_el_dict, bctype, face, elx, ely, nelx, nely):
         elif(face == 4):  # west face: connected element is on the last colum and conn face is east
             conn_el = nel_pre_con + nelx[conn_box] + ely*nelx[i]
             conn_face = 2
-
         return conn_el, conn_face
 
 
@@ -233,8 +200,8 @@ def find_cor_el(nelx, nely, bcx0, bcx1, bcy0, bcy1):
         elif ('P' in bcy1[i] and bcy1[i][1:3] != '  '):
             key = bcy1[i][1:3]
             add_value(i, key, cor_period_el) 
-
     return cor_intern_el, cor_period_el
+
 
 # Function for writing the fluid BCs in a correct format into .rea file
 #----------------------------------------------------------------------
@@ -273,15 +240,17 @@ def write_bcs(file_obj, nelx, nely, n_total, bcx0, bcx1, bcy0, bcy1, bcz0, bcz1)
                     # Set the BC for current element and face
                     set_bc(file_obj, i, bc, f, elx, ely, nelx, nely, n_total, \
                             cor_intern_el, cor_period_el)
-
         n_prev = n_prev + nelx[i]*nely[i]
+
 
 # End of function definitions
 # xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx        
-
+# xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx        
 
 # ----------------------------------------------------------------------
+# ----------------------------------------------------------------------
 # MAIN PART OF THE PROGRAM
+# ----------------------------------------------------------------------
 # ----------------------------------------------------------------------
 
 # Read the .box file
@@ -356,7 +325,7 @@ if (spatial_dim == 2):
             dx.append(x_len[j]/nelx[j])
             xpts.append(calc_pts(xstart[j], xend[j], xratio[j], nelx[j]))
         else:
-            xpts.append = x_coor[0:nelx]    
+            xpts.append([float(x) for x in x_coor[j][0:nelx[j]+1]])
         y_coor.append(box_params[3].split())
         if (nely[j] < 0):
             nely[j] = nely[j]*(-1)
@@ -367,7 +336,7 @@ if (spatial_dim == 2):
             dy.append(y_len[j]/nely[j])
             ypts.append(calc_pts(ystart[j], yend[j], yratio[j], nely[j]))
         else:
-            ypts.append = y_coor[0:nely]
+            ypts.append([float(x) for x in y_coor[j][0:nely[j]+1]])
         bcs.append(box_params[4].split(','))
         bcx0.append(bcs[j][0])
         bcx1.append(bcs[j][1])
@@ -399,6 +368,7 @@ skip = False
 for i in lines:
     if('MESH DATA' in i):
         f.write(i)
+#        pdb.set_trace()
         write_mesh(f, xpts, ypts, \
                 nelx, nely, n_total, spatial_dim)
         skip = True
