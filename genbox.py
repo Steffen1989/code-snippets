@@ -14,22 +14,37 @@ import pdb # for debugging
 # Define some functions which we need later on
 #----------------------------------------------------------------------
 
-# Function for calculating the length of the first element
+# Function for calculating x/y pts for a given 
+# start, end and ratio
 #----------------------------------------------------------------------
-def calc_L0 (start, end, ratio, nelx):
+def calc_pts(start, end, ratio, nel):
     denominator = 0 # initialize
-    for i in range(0,nelx):
+    pts = [start]
+    for i in range(0,nel):
         denominator = denominator + ratio**(i)
-    L0 = (end - start)/denominator
-    return L0
+    L0 = (end - start)/denominator # length of first element
+    delta = L0
+    for i in range(1, nel):
+        pts.append(pts[-1] + delta)
+        delta = delta*ratio
+    pts.append(end)
+    return pts
+
+
+
+## Function for calculating the length of the first element
+##----------------------------------------------------------------------
+#def calc_L0 (start, end, ratio, nelx):
+#    denominator = 0 # initialize
+#    for i in range(0,nelx):
+#        denominator = denominator + ratio**(i)
+#    L0 = (end - start)/denominator
+#    return L0
 
 # Function for writing the mesh in a correct format into .rea file
 #---------------------------------------------------------------------- 
-def write_mesh(file_obj, xstart, xend, xratio, ystart, yend, yratio, \
-        nelx, nely, n_tot, spatial_dim, dx, dy):
-#    n_tot = 0   # total number of elements in all blocks
-#    for i in range(0,len(nelx)):
-#        n_tot = n_tot + nelx[i]*nely[i]
+def write_mesh(file_obj, xpts, ypts, \
+        nelx, nely, n_tot, spatial_dim):
     # write header 
     file_obj.write('{0:10d} {1:10d} {2:10d}'.format(n_tot,spatial_dim,n_tot))
     file_obj.write(' NEL,NDIM,NELV\n')
@@ -37,38 +52,39 @@ def write_mesh(file_obj, xstart, xend, xratio, ystart, yend, yratio, \
     # write elements for all blocks
     n_prev = 0  # number of elements in all previous blocks
     for i in range(0,len(nelx)):    # loop through all blocks
-        # copy element locations
-#        pdb.set_trace()
-        x0 = xstart[i]
-        x1 = xend[i]
-        xr = xratio[i]
-        dx0 = calc_L0(x0, x1, xr, nelx[i])
-        dx = dx0    # initial value for dx
-#        deltax = dx[i]
-        y0 = ystart[i]
-        y1 = yend[i]
-        yr = yratio[i]
-        dy0 = calc_L0(y0, y1, yr, nely[i])
-        dy = dy0    # initial value
-#        deltay = dy[i]
+#        # copy element locations
+##        pdb.set_trace()
+#        x0 = xstart[i]
+#        x1 = xend[i]
+#        xr = xratio[i]
+#        dx0 = calc_L0(x0, x1, xr, nelx[i])
+#        dx = dx0    # initial value for dx
+##        deltax = dx[i]
+#        y0 = ystart[i]
+#        y1 = yend[i]
+#        yr = yratio[i]
+#        dy0 = calc_L0(y0, y1, yr, nely[i])
+#        dy = dy0    # initial value
+##        deltay = dy[i]
         for ely in range(0,nely[i]):    # Loop through all elements
             for elx in range(0,nelx[i]):
+#                pdb.set_trace()
                 elem_number = elx + ely*nelx[i] + 1 + n_prev
                 file_obj.write('{0:>19s} {1:10d} {2:6s}{3:1s}{4:12s}'.format\
                         ('ELEMENT',elem_number,'[    1','a',']  GROUP  0\n'))
                 file_obj.write('{0: 10.6f}{1: 14.6f}{2: 14.6f}{3: 14.6f}   {4:s}'.format\
-                        (x0,x0+dx,x0+dx,x0,'\n'))   # x coordinates
+                        (xpts[i][elx],xpts[i][elx+1],xpts[i][elx+1],xpts[i][elx],'\n'))   # x coordinates
                 file_obj.write('{0: 10.6f}{1: 14.6f}{2: 14.6f}{3: 14.6f}   {4:s}'.format\
-                        (y0,y0,y0+dy,y0+dy,'\n'))  # y coordinates
-                # update element locations and ratios
-                x0 = x0+dx
-                dx = dx*xr
-            # update and reset element locations and ratios
-            x0 = xstart[i]
-            dx = dx0
-            y0 = y0 +dy
-            dy = dy*yr
-        y0 = ystart[i]
+                        (ypts[i][ely],ypts[i][ely],ypts[i][ely+1],ypts[i][ely+1],'\n'))  # y coordinates
+#                # update element locations and ratios
+#                x0 = x0+dx
+#                dx = dx*xr
+#            # update and reset element locations and ratios
+#            x0 = xstart[i]
+#            dx = dx0
+#            y0 = y0 +dy
+#            dy = dy*yr
+#        y0 = ystart[i]
         n_prev = n_prev + nelx[i]*nely[i]   # update n_prev
 
 # Function for writing formated text for BCs similar to nek5000 genbox
@@ -302,12 +318,14 @@ nelx = []
 nely = []
 n_total = 0
 x_coor = []
+xpts = []
 xstart = []
 xend = []
 xratio = []
 x_len = []
 dx = []
 y_coor = []
+ypts = []
 ystart = []
 yend = []
 yratio = []
@@ -321,26 +339,35 @@ bcy1 = []
 bcz0 = []
 bcz1 = []
 if (spatial_dim == 2):
-#    pdb.set_trace()
     box_params = box_lines
     while (len(box_params) >= 5):
         # 5 lines defining the 2d box
         num_box.append(box_params[0].strip())    # e. g. "Box 1"
         nel.append(box_params[1].split())
-        nelx.append(int(nel[j][0])*(-1))
-        nely.append(int(nel[j][1])*(-1))
+        nelx.append(int(nel[j][0]))
+        nely.append(int(nel[j][1]))
         x_coor.append(box_params[2].split())
-        xstart.append(float(x_coor[j][0]))
-        xend.append(float(x_coor[j][1]))
-        xratio.append(float(x_coor[j][2]))
-        x_len.append(abs(xend[j] - xstart[j]))
-        dx.append(x_len[j]/nelx[j])
+        if (nelx[j] < 0):
+            nelx[j] = nelx[j]*(-1)
+            xstart.append(float(x_coor[j][0]))
+            xend.append(float(x_coor[j][1]))
+            xratio.append(float(x_coor[j][2]))
+            x_len.append(abs(xend[j] - xstart[j]))
+            dx.append(x_len[j]/nelx[j])
+            xpts.append(calc_pts(xstart[j], xend[j], xratio[j], nelx[j]))
+        else:
+            xpts.append = x_coor[0:nelx]    
         y_coor.append(box_params[3].split())
-        ystart.append(float(y_coor[j][0]))
-        yend.append(float(y_coor[j][1]))
-        yratio.append(float(y_coor[j][2]))
-        y_len.append(abs(yend[j] - ystart[j]))
-        dy.append(y_len[j]/nely[j])
+        if (nely[j] < 0):
+            nely[j] = nely[j]*(-1)
+            ystart.append(float(y_coor[j][0]))
+            yend.append(float(y_coor[j][1]))
+            yratio.append(float(y_coor[j][2]))
+            y_len.append(abs(yend[j] - ystart[j]))
+            dy.append(y_len[j]/nely[j])
+            ypts.append(calc_pts(ystart[j], yend[j], yratio[j], nely[j]))
+        else:
+            ypts.append = y_coor[0:nely]
         bcs.append(box_params[4].split(','))
         bcx0.append(bcs[j][0])
         bcx1.append(bcs[j][1])
@@ -372,8 +399,8 @@ skip = False
 for i in lines:
     if('MESH DATA' in i):
         f.write(i)
-        write_mesh(f, xstart, xend, xratio, ystart, yend, yratio, \
-                nelx, nely, n_total, spatial_dim, dx, dy)
+        write_mesh(f, xpts, ypts, \
+                nelx, nely, n_total, spatial_dim)
         skip = True
     if('CURVED SIDE DATA' in i):
         skip = False
