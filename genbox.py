@@ -1,3 +1,4 @@
+#!/usr/bin/env python3.5
 # This python script is inspired by Nek5000's genbox tool for simple mesh generation
 # I want to use it to create a simple mesh for roughness simulations 
 # Therefore, periodic boundary conditions and internal BCs need to be prescribed in multiple boxes
@@ -256,6 +257,7 @@ def write_bcs(file_obj, nelx, nely, n_total, bcx0, bcx1, bcy0, bcy1, bcz0, bcz1)
 # Read the .box file
 #----------------------------------------------------------------------
 #boxfile = input('--> ')
+#boxfile = 'stream_005_dist.box1'
 boxfile = 'rough_block.box5'
 f = open(boxfile, 'r') # open for read
 lines = f.readlines() # everything is saved in variable "lines"
@@ -291,15 +293,11 @@ xpts = []
 xstart = []
 xend = []
 xratio = []
-x_len = []
-dx = []
 y_coor = []
 ypts = []
 ystart = []
 yend = []
 yratio = []
-y_len = []
-dy = []
 bcs = []
 bcx0 = []
 bcx1 = []
@@ -316,28 +314,40 @@ if (spatial_dim == 2):
         nelx.append(int(nel[j][0]))
         nely.append(int(nel[j][1]))
         x_coor.append(box_params[2].split())
+        multi_x = 0
         if (nelx[j] < 0):
             nelx[j] = nelx[j]*(-1)
             xstart.append(float(x_coor[j][0]))
             xend.append(float(x_coor[j][1]))
             xratio.append(float(x_coor[j][2]))
-            x_len.append(abs(xend[j] - xstart[j]))
-            dx.append(x_len[j]/nelx[j])
             xpts.append(calc_pts(xstart[j], xend[j], xratio[j], nelx[j]))
         else:
+            xstart.append(0) # dummy values to fill them for this block
+            xend.append(0)
+            xratio.append(0)
+            # check for multiple lines
+            while (len(x_coor[j]) < nelx[j]+1):
+                multi_x = multi_x + 1
+                x_coor[j].extend(box_params[2+multi_x].split())
             xpts.append([float(x) for x in x_coor[j][0:nelx[j]+1]])
-        y_coor.append(box_params[3].split())
+        y_coor.append(box_params[3+multi_x].split())
+        multi_y = 0
         if (nely[j] < 0):
             nely[j] = nely[j]*(-1)
             ystart.append(float(y_coor[j][0]))
             yend.append(float(y_coor[j][1]))
             yratio.append(float(y_coor[j][2]))
-            y_len.append(abs(yend[j] - ystart[j]))
-            dy.append(y_len[j]/nely[j])
             ypts.append(calc_pts(ystart[j], yend[j], yratio[j], nely[j]))
         else:
+            ystart.append(0) # dummy values to fill them for this block
+            yend.append(0)
+            yratio.append(0)
+            # check for multiple lines
+            while (len(y_coor[j]) < nely[j]+1):
+                multi_y = multi_y + 1
+                y_coor[j].extend(box_params[3+multi_x+multi_y].split())
             ypts.append([float(x) for x in y_coor[j][0:nely[j]+1]])
-        bcs.append(box_params[4].split(','))
+        bcs.append(box_params[4+multi_x+multi_y].split(','))
         bcx0.append(bcs[j][0])
         bcx1.append(bcs[j][1])
         bcy0.append(bcs[j][2])
@@ -345,7 +355,7 @@ if (spatial_dim == 2):
         bcz0.append(bcs[j][4])
         bcz1.append(bcs[j][5][0:2])
         # remove first box lines
-        del box_params[0:5]
+        del box_params[0:5+multi_x+multi_y]
         j = j+1
     # get total number of elements
     for h in range(0, len(nelx)):
