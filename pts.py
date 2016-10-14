@@ -5,6 +5,7 @@
 
 import numpy as np
 import sys
+import pdb
 
 if (len(sys.argv) < 4):
     print('Usage:' + sys.argv[0] + ' <start> <end> <number of ELEMENTS> [shrink=0 (default), enlarge=1]')
@@ -22,18 +23,27 @@ else:
 
     # Calculations
     n_pts = n_el + 1
-    pts = np.zeros(n_pts)
+    # use one more point for now and remove one later
+    pts = np.zeros(n_pts+1)
     pts_ref = pts.copy()
     k = 0
-    for i in np.linspace(0,1,n_pts):
+    for i in np.linspace(0,1,n_pts+1): 
         if (shrink == 0):
-            pts_ref[k] = np.sin(np.pi/2*i)
+            pts_ref[k] = np.sin(np.pi/2*(i))
         else:
-            pts_ref[k] = -(np.sin(np.pi/2*(1+i)) - 1)
+            pts_ref[k] = np.cos(np.pi/2*(i))
         k = k+1
+    
     delta = end - start
-    # shift and stretch
-    pts = pts_ref*delta + start
+    if (shrink == 0):
+        # remove 1 point in the clustering region
+        pts_ref = np.delete(pts_ref, -2)
+        pts = pts_ref*delta + start
+    else:
+        # remove 1 point in the clustering region
+        pts_ref = np.delete(pts_ref, 1)
+        pts = end - pts_ref*delta
+
 
 
     # Output
