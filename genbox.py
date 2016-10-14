@@ -256,9 +256,9 @@ def write_bcs(file_obj, nelx, nely, n_total, bcx0, bcx1, bcy0, bcy1, bcz0, bcz1)
 
 # Read the .box file
 #----------------------------------------------------------------------
-#boxfile = input('--> ')
+boxfile = input('--> ')
 #boxfile = 'stream_005_dist.box1'
-boxfile = 'rough_block.box5'
+#boxfile = 'stream_005.box2h'
 f = open(boxfile, 'r') # open for read
 lines = f.readlines() # everything is saved in variable "lines"
 f.close()
