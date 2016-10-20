@@ -362,7 +362,8 @@ if (spatial_dim == 2):
         n_total = n_total + nelx[h]*nely[h]
 elif (spatial_dim == 3):
     # 6 lines defining the 3d box
-    n=3
+    print('Sorry, the script is not able to generate 3d meshes, yet.')
+    print('You can use n2to3 for extrusion though.')
 
 
 # Now read the corresponding .rea file
