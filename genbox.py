@@ -89,14 +89,14 @@ def get_con_el_f(i, cor_el_dict, bctype, face, elx, ely, nelx, nely):
             conn_face = 3
         elif(face == 2):  # east face: connected element is on the first column in the conn box
             # and conn face is west
-            conn_el = nel_pre_con + (0+1) + ely*nelx[i]
+            conn_el = nel_pre_con + (0+1) + ely*nelx[conn_box]
             conn_face = 4
         elif(face == 3):  # north face: connected element is on the first row in the conn box
             # and conn face is south
-            conn_el = nel_pre_con + (elx+1) + 0*nelx[i]
+            conn_el = nel_pre_con + (elx+1) + 0*nelx[conn_box]
             conn_face = 1
         elif(face == 4):  # west face: connected element is on the last colum and conn face is east
-            conn_el = nel_pre_con + nelx[conn_box] + ely*nelx[i]
+            conn_el = nel_pre_con + nelx[conn_box] + ely*nelx[conn_box]
             conn_face = 2
         return conn_el, conn_face
 
@@ -152,6 +152,7 @@ def set_bc(file_obj, i, bctype, face, elx, ely, nelx, nely, n_tot, cor_int_el, c
     
     # periodic BC specified by the user between two boxes
     elif ('P' in bctype[i] and bctype[i][1:3] != '  '):    
+#        pdb.set_trace()
         # get the corresponding connected element and face
         [conn_el, conn_face] = get_con_el_f(i, cor_per_el, bctype, face, elx, ely, nelx, nely)
         write_f(file_obj, 'P  ', cur_el, dig_n_tot, face, conn_el, conn_face)
