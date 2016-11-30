@@ -36,11 +36,11 @@ else:
     
     delta = end - start
     if (shrink == 0):
-        # remove 1 point in the clustering region
+#        # remove 1 point in the clustering region
         pts_ref = np.delete(pts_ref, -2)
         pts = pts_ref*delta + start
     else:
-        # remove 1 point in the clustering region
+#        # remove 1 point in the clustering region
         pts_ref = np.delete(pts_ref, 1)
         pts = end - pts_ref*delta
 
