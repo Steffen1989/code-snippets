@@ -24,10 +24,14 @@ else:
     # Calculations
     n_pts = n_el + 1
     # use one more point for now and remove one later
-    pts = np.zeros(n_pts+1)
+#    pts = np.zeros(n_pts+1)
+    pts = np.zeros(n_pts+0)
+
     pts_ref = pts.copy()
     k = 0
-    for i in np.linspace(0,1,n_pts+1): 
+#    for i in np.linspace(0,1,n_pts+1): 
+    for i in np.linspace(0,1,n_pts+0): 
+
         if (shrink == 0):
             pts_ref[k] = np.sin(np.pi/2*(i))
         else:
@@ -37,11 +41,11 @@ else:
     delta = end - start
     if (shrink == 0):
 #        # remove 1 point in the clustering region
-        pts_ref = np.delete(pts_ref, -2)
+#        pts_ref = np.delete(pts_ref, -2)
         pts = pts_ref*delta + start
     else:
 #        # remove 1 point in the clustering region
-        pts_ref = np.delete(pts_ref, 1)
+#        pts_ref = np.delete(pts_ref, 1)
         pts = end - pts_ref*delta
 
 

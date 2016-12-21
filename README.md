@@ -13,3 +13,6 @@ This script can be used to create a point distribution which clusters at one end
 
 ## watch_cfl.bash
 Script to plot the cfl number over time step.
+
+## watch_dpdz.bash
+Script to plot the pressure gradient over time step.
