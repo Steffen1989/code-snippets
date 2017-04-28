@@ -20,4 +20,4 @@ grep "$search" "$log" | sed 's/  */ /g' > "$out"
 
 
 # plot with gnuplot
-gnuplot -e "plot '$out' using 2:4 with lines; pause -1 'Hit Return to continue'" 
+gnuplot -e "set terminal dumb; plot '$out' using 2:4 with lines; pause -1 'Hit Return to continue'" 

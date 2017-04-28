@@ -28,4 +28,4 @@ output="cfl.log"
 # only show 8th field
 sed '1,/Starting\stime/d' "$input" | grep tep | sed 's/\s\s*/ /g' | cut -d ' ' -f 8 > "$output"
 
-gnuplot -e "plot'$output'; pause -1 'Hit return to continue'"
+gnuplot -e "set terminal dumb; plot'$output'; pause -1 'Hit return to continue'"
