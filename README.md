@@ -16,3 +16,6 @@ Script to plot the cfl number over time step.
 
 ## watch_dpdz.bash
 Script to plot the pressure gradient over time step.
+
+## calc_mean.py
+Script to extract only the required time/timestep between steps 30 and 95 for a run of nsteps=103 and taking the mean.
