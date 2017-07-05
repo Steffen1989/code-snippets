@@ -41,7 +41,7 @@ print('The mean time/timestep is {0:10.5f}s'.format(mean))
 f = open('mean_t.dat', 'w')
 # Convert to string
 #s = str(mean)
-f.write('{0:10.5f}'.format(mean))
+f.write('{0:10.5f}\n'.format(mean))
 f.close()
 
 ## read data file
